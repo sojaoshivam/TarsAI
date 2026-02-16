@@ -33,8 +33,8 @@ export async function checkSubscription() {
   // Check if it's a new month and reset PDF count
   const now = new Date();
   const lastReset = subscription.lastResetDate || subscription.createdAt;
-  const monthsSinceReset = 
-    (now.getFullYear() - lastReset.getFullYear()) * 12 + 
+  const monthsSinceReset =
+    (now.getFullYear() - lastReset.getFullYear()) * 12 +
     (now.getMonth() - lastReset.getMonth());
 
   if (monthsSinceReset >= 1 && subscription.plan === "pro") {
@@ -43,7 +43,7 @@ export async function checkSubscription() {
       .update(userSubscriptions)
       .set({ pdfCount: 0, lastResetDate: now })
       .where(eq(userSubscriptions.userId, userId));
-    
+
     subscription.pdfCount = 0;
   }
 
@@ -52,11 +52,11 @@ export async function checkSubscription() {
     subscription.currentPeriodEnd &&
     subscription.currentPeriodEnd.getTime() + DAY_IN_MS > Date.now();
 
-  return { 
-    isValid, 
+  return {
+    isValid,
     plan: subscription.plan,
     pdfCount: subscription.pdfCount,
-    pdfLimit: subscription.plan === "free" ? 2 : 20,
+    pdfLimit: subscription.plan === "free" ? 2 : 10,
   };
 }
 
@@ -65,18 +65,20 @@ export async function canUploadPDF() {
   if (!userId) return { canUpload: false, reason: "Not authenticated" };
 
   const subscriptionStatus = await checkSubscription();
-  const { plan, pdfCount, pdfLimit } = subscriptionStatus;
+  const { plan } = subscriptionStatus;
+  const pdfCount = subscriptionStatus.pdfCount || 0;
+  const pdfLimit = subscriptionStatus.pdfLimit || 0;
 
-//   if (pdfCount >= pdfLimit) {
-//     return {
-//       canUpload: false,
-//       reason: plan === "free" 
-//         ? "Free plan limit reached. Upgrade to Pro for 20 PDFs per month."
-//         : "Monthly PDF limit reached. Limit resets next month.",
-//       pdfCount,
-//       pdfLimit,
-//     };
-//   }
+  if (pdfCount >= pdfLimit) {
+    return {
+      canUpload: false,
+      reason: plan === "free"
+        ? "Free plan limit reached. Upgrade to Pro for 10 PDFs per month."
+        : "Monthly PDF limit reached. Limit resets next month.",
+      pdfCount,
+      pdfLimit,
+    };
+  }
 
   return { canUpload: true, pdfCount, pdfLimit };
 }
@@ -96,6 +98,6 @@ export async function incrementPDFCount() {
 
   await db
     .update(userSubscriptions)
-    .set({ pdfCount: _userSubscriptions[0].pdfCount + 1 })
+    .set({ pdfCount: (_userSubscriptions[0].pdfCount || 0) + 1 })
     .where(eq(userSubscriptions.userId, userId));
 }

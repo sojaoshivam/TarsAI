@@ -4,6 +4,7 @@ import { userSubscriptions } from "@/app/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
+import { clerkClient } from "@clerk/nextjs/server";
 
 export async function POST(req: Request) {
   const body = await req.text();
@@ -16,52 +17,94 @@ export async function POST(req: Request) {
   // }
 
   const event = JSON.parse(body);
+  console.log('Webhook received:', event.type);
+  console.log('Webhook body:', JSON.stringify(event, null, 2));
 
   try {
     switch (event.type) {
-      case "checkout.session.completed": {
-        const session = event.data;
-        const userId = session.metadata?.userId;
+      case "checkout.session.completed":
+      case "payment.succeeded": // Possible Dodo event
+      case "subscription.active": // Possible Dodo event
+        {
+          const session = event.data || event;
 
-        if (!userId) {
-          return new NextResponse("User ID not found", { status: 400 });
-        }
+          let userId = session.metadata?.userId || session.customer?.metadata?.userId;
 
-        // Update or create subscription
-        const existingSub = await db
-          .select()
-          .from(userSubscriptions)
-          .where(eq(userSubscriptions.userId, userId));
+          // Handle case where metadata is a string
+          if (!userId && session.metadata && typeof session.metadata === 'string') {
+            try {
+              const parsedMeta = JSON.parse(session.metadata);
+              userId = parsedMeta.userId;
+            } catch (e) {
+              console.log("Failed to parse metadata string");
+            }
+          }
 
-        const subscriptionEndDate = new Date();
-        subscriptionEndDate.setMonth(subscriptionEndDate.getMonth() + 1);
+          // Fallback: Look up by email if userId is still missing
+          if (!userId) {
+            const email = session.customer_email || session.email || session.customer_details?.email;
+            if (email) {
+              console.log("Looking up user by email:", email);
+              try {
+                const client = await clerkClient();
+                const users = await client.users.getUserList({ emailAddress: [email], limit: 1 });
+                if (users.data.length > 0) {
+                  userId = users.data[0].id;
+                  console.log("Found user by email:", userId);
+                }
+              } catch (error) {
+                console.error("Clerk lookup failed:", error);
+              }
+            }
+          }
 
-        if (existingSub[0]) {
-          await db
-            .update(userSubscriptions)
-            .set({
-              stripeCustomerId: session.customer_id,
-              stripeSubscriptionId: session.subscription_id,
+          console.log(`Processing ${event.type} for userId:`, userId);
+
+          if (!userId) {
+            console.error("Webhook: User ID not found in session metadata or email lookup");
+            return new NextResponse("User ID not found", { status: 400 });
+          }
+
+          // Update or create subscription
+          const existingSub = await db
+            .select()
+            .from(userSubscriptions)
+            .where(eq(userSubscriptions.userId, userId));
+
+          const subscriptionEndDate = new Date();
+          subscriptionEndDate.setMonth(subscriptionEndDate.getMonth() + 1);
+
+          const subId = session.subscription_id || session.id || "manual_sub_" + Date.now();
+          const custId = session.customer_id || session.customer || "manual_cust_" + Date.now();
+
+          if (existingSub[0]) {
+            await db
+              .update(userSubscriptions)
+              .set({
+                stripeCustomerId: custId,
+                stripeSubscriptionId: subId,
+                plan: "pro",
+                currentPeriodEnd: subscriptionEndDate,
+                pdfCount: 0,
+                lastResetDate: new Date(),
+              })
+              .where(eq(userSubscriptions.userId, userId));
+            console.log("Updated existing subscription for", userId);
+          } else {
+            await db.insert(userSubscriptions).values({
+              userId,
+              stripeCustomerId: custId,
+              stripeSubscriptionId: subId,
               plan: "pro",
               currentPeriodEnd: subscriptionEndDate,
               pdfCount: 0,
               lastResetDate: new Date(),
-            })
-            .where(eq(userSubscriptions.userId, userId));
-        } else {
-          await db.insert(userSubscriptions).values({
-            userId,
-            stripeCustomerId: session.customer_id,
-            stripeSubscriptionId: session.subscription_id,
-            plan: "pro",
-            currentPeriodEnd: subscriptionEndDate,
-            pdfCount: 0,
-            lastResetDate: new Date(),
-          });
-        }
+            });
+            console.log("Created new subscription for", userId);
+          }
 
-        break;
-      }
+          break;
+        }
 
       case "subscription.updated": {
         const subscription = event.data;

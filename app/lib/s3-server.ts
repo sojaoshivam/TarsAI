@@ -44,4 +44,7 @@ export async function downloadFromS3(file_key: string): Promise<string | null> {
     console.error("S3 Download Error:", error);
     return null; // This will now be caught by the check in Step 1
   }
+  // Note: Caller is responsible for cleaning up the file, but in this specific flow (Pinecone loading),
+  // we might want to clean it up here if possible. However, the loader needs it. 
+  // We'll update pinecone.ts to clean it up.
 }

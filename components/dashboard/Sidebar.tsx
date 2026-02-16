@@ -60,7 +60,7 @@ const Sidebar = ({ chatId, chats }: Props) => {
                 if (pdfCount >= pdfLimit) {
                     toast.error(
                         subscriptionData.plan === "free"
-                            ? "Free plan limit reached! Upgrade to Pro for 20 PDFs per month."
+                            ? "Free plan limit reached! Upgrade to Pro for 10 PDFs per month."
                             : "Monthly PDF limit reached. Limit resets next month."
                     )
                     return;
@@ -113,9 +113,9 @@ const Sidebar = ({ chatId, chats }: Props) => {
     return (
         <div className='w-full h-screen p-4 bg-[#0a0a0a] border-r border-gray-800/50 flex flex-col' {...getRootProps()}>
             <input {...getInputProps()} />
-            
+
             {/* New Chat Button */}
-            <Button 
+            <Button
                 onClick={(e) => {
                     e.stopPropagation()
                     if (pdfCount >= pdfLimit) {
@@ -149,7 +149,7 @@ const Sidebar = ({ chatId, chats }: Props) => {
                 <div className='mt-3 p-2 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-start gap-2'>
                     <AlertCircle className='w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5' />
                     <p className='text-xs text-amber-400'>
-                        {plan === "free" 
+                        {plan === "free"
                             ? "PDF limit reached. Upgrade to continue."
                             : "Monthly limit reached. Resets next month."}
                     </p>
@@ -190,7 +190,7 @@ const Sidebar = ({ chatId, chats }: Props) => {
                         </span>
                     </div>
                     <div className='w-full bg-gray-800 rounded-full h-1.5 overflow-hidden'>
-                        <div 
+                        <div
                             className={cn('h-full rounded-full transition-all', {
                                 'bg-gradient-to-r from-cyan-500 to-blue-500': percentage < 80,
                                 'bg-gradient-to-r from-amber-500 to-orange-500': percentage >= 80 && percentage < 100,
@@ -206,7 +206,7 @@ const Sidebar = ({ chatId, chats }: Props) => {
 
                 {/* Upgrade Button */}
                 {plan === "free" && (
-                    <Button 
+                    <Button
                         className='w-full rounded-xl bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white transition-all h-11 font-medium shadow-lg shadow-cyan-500/20'
                         onClick={handleUpgrade}
                     >
@@ -220,9 +220,9 @@ const Sidebar = ({ chatId, chats }: Props) => {
                     <div className='flex items-center gap-3'>
                         <div className='w-8 h-8 rounded-full bg-cyan-500/20 flex items-center justify-center border border-cyan-500/30'>
                             {user?.imageUrl ? (
-                                <img 
-                                    src={user.imageUrl} 
-                                    alt="Profile" 
+                                <img
+                                    src={user.imageUrl}
+                                    alt="Profile"
                                     className='w-full h-full rounded-full object-cover'
                                 />
                             ) : (

@@ -1,7 +1,8 @@
 import { db } from "@/app/lib/db";
-import { messages as messageSchema } from "@/app/lib/db/schema";
+import { messages as messageSchema, chats } from "@/app/lib/db/schema";
 import { UIMessage } from "ai";
 import { asc, eq } from "drizzle-orm";
+import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { text } from "stream/consumers";
 
@@ -11,6 +12,16 @@ export async function POST(req: Request) {
         const { chatId } = await req.json();
         if (!chatId) {
             return new NextResponse("Missing chatId", { status: 400 });
+        }
+
+        const { userId } = await auth();
+        if (!userId) {
+            return new NextResponse("Unauthorized", { status: 401 });
+        }
+
+        const _chats = await db.select().from(chats).where(eq(chats.id, chatId));
+        if (_chats.length !== 1 || _chats[0].userId !== userId) {
+            return new NextResponse("Unauthorized", { status: 403 });
         }
 
         //fetch messages filter by chatId and order in ascendinf order

@@ -2,7 +2,9 @@ import { streamText } from "ai";
 import { google } from "@ai-sdk/google";
 import { getContext } from "@/app/lib/context";
 import { db } from "@/app/lib/db";
-import { messages as messagesTable } from "@/app/lib/db/schema";
+import { chats, messages as messagesTable } from "@/app/lib/db/schema";
+import { eq } from "drizzle-orm";
+import { auth } from "@clerk/nextjs/server";
 
 export async function POST(req: Request) {
   try {
@@ -13,14 +15,24 @@ export async function POST(req: Request) {
       return new Response("Missing chatId or fileKey", { status: 400 });
     }
 
+    const { userId } = await auth();
+    if (!userId) {
+      return new Response("Unauthorized", { status: 401 });
+    }
+
+    const _chats = await db.select().from(chats).where(eq(chats.id, chatId));
+    if (_chats.length !== 1 || _chats[0].userId !== userId) {
+      return new Response("Unauthorized", { status: 403 });
+    }
+
     // 2. Extract User Message Text
     const lastMessage = messages[messages.length - 1];
-    
+
     // Debug: Log the last message structure
     console.log("Last message:", JSON.stringify(lastMessage, null, 2));
-    
+
     let lastMessageText = "";
-    
+
     // Handle different content formats
     if (typeof lastMessage.content === 'string') {
       lastMessageText = lastMessage.content;
@@ -52,8 +64,8 @@ export async function POST(req: Request) {
 
     // 4. Retrieve Context & Build System Prompt
     const context = await getContext(lastMessageText, fileKey);
-    console.log("CONTEXT ->>>>>",context);
-    
+    console.log("CONTEXT ->>>>>", context);
+
     const systemPrompt = `You are a chat with PDF AI, your name is TARS AI.
     
 START CONTEXT BLOCK
@@ -71,7 +83,7 @@ Do not make up information.`;
       const sanitizedMsg: any = {
         role: msg.role === 'system' ? 'assistant' : msg.role,
       };
-      
+
       // Ensure content is a string
       if (typeof msg.content === 'string') {
         sanitizedMsg.content = msg.content;
@@ -88,7 +100,7 @@ Do not make up information.`;
       } else {
         sanitizedMsg.content = '';
       }
-      
+
       return sanitizedMsg;
     });
 
@@ -107,7 +119,7 @@ Do not make up information.`;
         // 7. Save AI Response to DB
         try {
           const aiResponseText = event.text;
-          
+
           if (aiResponseText) {
             await db.insert(messagesTable).values({
               chatId: parseInt(chatId),

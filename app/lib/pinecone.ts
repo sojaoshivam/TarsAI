@@ -19,7 +19,7 @@ type PDFPage = {
 
 export async function loadS3IntoPinecone(file_key: string) {
     console.log("downloading the pdf in the system from the s3 bucket")
-   
+
 
     const file_name = await downloadFromS3(file_key);
     if (!file_name) {
@@ -27,6 +27,13 @@ export async function loadS3IntoPinecone(file_key: string) {
     }
     const loader = new PDFLoader(file_name!);
     const pages = (await loader.load() as PDFPage[])
+
+    // Cleanup: Delete the temporary file
+    const fs = require('fs');
+    fs.unlink(file_name!, (err: any) => {
+        if (err) console.error("Error deleting temp file:", err);
+        else console.log("Temp file deleted:", file_name);
+    });
 
     //2 prepare the document 
     // split the document into smaller sections

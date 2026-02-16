@@ -18,14 +18,14 @@ export async function POST(req: Request) {
 
     // Check if user can upload PDF
     const uploadStatus = await canUploadPDF();
-    
+
     if (!uploadStatus.canUpload) {
       return NextResponse.json(
-        { 
+        {
           error: uploadStatus.reason,
           pdfCount: uploadStatus.pdfCount,
           pdfLimit: uploadStatus.pdfLimit,
-        }, 
+        },
         { status: 403 }
       );
     }
@@ -39,7 +39,7 @@ export async function POST(req: Request) {
       .values({
         fileKey: file_key,
         pdfName: file_name,
-        pdfUrl: `https://pdf-tars-ai.s3.us-east-1.amazonaws.com/${file_key}`,
+        pdfUrl: `https://${process.env.NEXT_PUBLIC_S3_BUCKET_NAME}.s3.eu-north-1.amazonaws.com/${file_key}`,
         userId,
       })
       .returning({

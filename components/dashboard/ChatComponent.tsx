@@ -17,7 +17,7 @@ type Props = {
 
 export default function ChatComponent({ chatId, fileKey }: Props) {
   const [input, setInput] = useState("")
-  
+
   // 1. Fetch messages from DB using TanStack Query
   const { data: dbMessages, isLoading } = useQuery({
     queryKey: ["chat", chatId],
@@ -30,12 +30,12 @@ export default function ChatComponent({ chatId, fileKey }: Props) {
 
   // 2. Initialize Vercel AI SDK
   const { messages, setMessages, sendMessage, status, error, stop } = useChat({
-  transport: new DefaultChatTransport({
-    api: '/api/chat',           // now lives here
-  }),
-  // You can still pass global body fields if needed
-  // body: { chatId, fileKey },   // ← usually not needed here anymore
-});
+    transport: new DefaultChatTransport({
+      api: '/api/chat',           // now lives here
+    }),
+    // You can still pass global body fields if needed
+    // body: { chatId, fileKey },   // ← usually not needed here anymore
+  });
 
   // 3. Sync fetched DB messages into the Chat SDK state
   useEffect(() => {
@@ -116,7 +116,7 @@ export default function ChatComponent({ chatId, fileKey }: Props) {
                 ) : (
                   // Fallback if parts are missing (rare)
                   <p className="whitespace-pre-wrap text-sm leading-relaxed">
-                    {message.parts}
+                    {(message as any).content}
                   </p>
                 )}
               </div>
@@ -140,7 +140,7 @@ export default function ChatComponent({ chatId, fileKey }: Props) {
             </div>
           </div>
         )}
-        
+
         {/* Invisible element to scroll to */}
         <div ref={bottomRef} />
       </div>

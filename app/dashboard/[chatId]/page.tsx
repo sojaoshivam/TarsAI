@@ -57,7 +57,7 @@ const ChatsPage = async ({ params }: Props) => {
         <div className="flex max-h-screen overflow-hidden bg-[#0a0a0a]">
             <div className="flex w-full h-full">
                 {/* Chat Sidebar */}
-                <div className="flex-[1] max-w-xs">
+                <div className="flex-[1] max-w-md">
                     <Sidebar chatId={chatIdNum} chats={_chats} />
                 </div>
 

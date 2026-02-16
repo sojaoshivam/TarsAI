@@ -89,12 +89,6 @@ export default function DisplayCards({ cards }: DisplayCardsProps) {
           key={index}
           // Spread the props from the array (like className and translations)
           {...cardProps}
-          // Spread the *other* props from the parent (like title, icon)
-          // This ensures all cards get the same content if not specified
-          title={cardProps.title}
-          description={cardProps.description}
-          date={cardProps.date}
-          icon={cardProps.icon}
         />
       ))}
     </div>
