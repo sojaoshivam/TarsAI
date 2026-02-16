@@ -7,7 +7,7 @@ import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
   const body = await req.text();
-  const signature = headers().get("dodo-signature") as string;
+  const signature = (await headers()).get("dodo-signature") as string;
 
   // Verify webhook signature (implement based on Dodo Payments docs)
   // const isValid = verifyDodoSignature(body, signature, process.env.DODO_WEBHOOK_SECRET!);
