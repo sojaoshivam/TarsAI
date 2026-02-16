@@ -67,16 +67,16 @@ export async function canUploadPDF() {
   const subscriptionStatus = await checkSubscription();
   const { plan, pdfCount, pdfLimit } = subscriptionStatus;
 
-  if (pdfCount >= pdfLimit) {
-    return {
-      canUpload: false,
-      reason: plan === "free" 
-        ? "Free plan limit reached. Upgrade to Pro for 20 PDFs per month."
-        : "Monthly PDF limit reached. Limit resets next month.",
-      pdfCount,
-      pdfLimit,
-    };
-  }
+//   if (pdfCount >= pdfLimit) {
+//     return {
+//       canUpload: false,
+//       reason: plan === "free" 
+//         ? "Free plan limit reached. Upgrade to Pro for 20 PDFs per month."
+//         : "Monthly PDF limit reached. Limit resets next month.",
+//       pdfCount,
+//       pdfLimit,
+//     };
+//   }
 
   return { canUpload: true, pdfCount, pdfLimit };
 }
