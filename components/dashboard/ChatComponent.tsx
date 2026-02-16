@@ -7,6 +7,7 @@ import BounceLoader from "../ui/loader";
 import { useChat, UIMessage } from "@ai-sdk/react"
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios"; // Make sure you have axios installed
+import { DefaultChatTransport } from "ai";
 
 type Props = {
   chatId: number
@@ -29,10 +30,12 @@ export default function ChatComponent({ chatId, fileKey }: Props) {
 
   // 2. Initialize Vercel AI SDK
   const { messages, setMessages, sendMessage, status, error, stop } = useChat({
-    api: '/api/chat',
-    body: { chatId, fileKey },
-   
-  });
+  transport: new DefaultChatTransport({
+    api: '/api/chat',           // now lives here
+  }),
+  // You can still pass global body fields if needed
+  // body: { chatId, fileKey },   // ← usually not needed here anymore
+});
 
   // 3. Sync fetched DB messages into the Chat SDK state
   useEffect(() => {
