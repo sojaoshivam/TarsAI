@@ -3,6 +3,7 @@ import { chats, messages } from "@/app/lib/db/schema"
 import PdfViewer from "@/components/dashboard/PdfViewer"
 import Sidebar from "@/components/dashboard/Sidebar"
 import ChatComponent from "@/components/dashboard/ChatComponent"
+import ChatPageClient from "./ChatPageClient"
 import { auth } from "@clerk/nextjs/server"
 import { eq, asc } from "drizzle-orm"
 import { redirect } from "next/navigation"
@@ -54,34 +55,12 @@ const ChatsPage = async ({ params }: Props) => {
     }));
 
     return (
-        <div className="flex max-h-screen overflow-hidden bg-[#0a0a0a]">
-            <div className="flex w-full h-full">
-                {/* Chat Sidebar */}
-                <div className="flex-[1] max-w-md">
-                    <Sidebar chatId={chatIdNum} chats={_chats} />
-                </div>
-
-                {/* PDF Viewer */}
-                <div className="flex-[5] max-h-screen p-4 overflow-scroll">
-                    <PdfViewer pdfUrl={currentChat?.pdfUrl || ' '} />
-                </div>
-
-                {/* Resizable Divider */}
-                <div className="w-1 bg-gray-800/50 hover:bg-cyan-500/30 cursor-col-resize transition-colors relative group">
-                    <div className="absolute inset-y-0 -left-1 -right-1 group-hover:bg-cyan-500/10" />
-                </div>
-
-                {/* Chat Component */}
-                <div className="flex-[3]">
-                    <ChatComponent
-                        key={chatIdNum} // Critical for resetting chat state
-                        chatId={chatIdNum}
-                        fileKey={currentChat?.fileKey || ''}
-                        initialMessages={initialMessages}
-                    />
-                </div>
-            </div>
-        </div>
+        <ChatPageClient
+            chatId={chatIdNum}
+            initialMessages={initialMessages}
+            currentChat={currentChat!}
+            chats={_chats}
+        />
     )
 }
 

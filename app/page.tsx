@@ -13,14 +13,14 @@ import { MorphingText } from "@/components/ui/morphing-text";
 import { RetroGrid } from "@/components/ui/retro-grid";
 import { ShimmerButton } from "@/components/ui/shimmer-button";
 import FileUpload from "@/components/dashboard/fileupload";
-import {FileText, Brain, TextSearch } from "lucide-react";
+import { FileText, Brain, TextSearch } from "lucide-react";
 import Link from "next/link";
-import { FadeIn } from "@/components/ui/fade-in"; 
+import { FadeIn } from "@/components/ui/fade-in";
 
 
 export default async function Home() {
- 
-const { userId } = await auth();
+
+  const { userId } = await auth();
   const isAuth = !!userId;
   const texts = [
     "TARS",
@@ -71,7 +71,7 @@ const { userId } = await auth();
 
   return (
     <main className="overflow-x-hidden">
-      <Navbar/>
+      <Navbar />
 
       <div className="px-6 md:px-12 lg:px-20 flex flex-col">
 
@@ -82,15 +82,15 @@ const { userId } = await auth();
           <p className="font-semibold text-[#dadada] font-inter mt-10 text-sm lg:text-xl lg:mt-20">
             Turn Any PDF Into Instant Answers
           </p>
-          {isAuth ? 
+          {isAuth ?
             <FileUpload /> :
-            <Link href="/dashboard">
-            <ShimmerButton className="mt-24 md:mt-[150px]">
-              <span className="whitespace-pre-wrap text-center text-sm p-1 font-medium leading-none tracking-tight text-[#dadada] dark:from-white dark:to-slate-900/10 lg:text-lg">
-               Get Started
-              </span>
-            </ShimmerButton>
-          </Link>}
+            <Link href="/sign-up">
+              <ShimmerButton className="mt-24 md:mt-[150px]">
+                <span className="whitespace-pre-wrap text-center text-sm p-1 font-medium leading-none tracking-tight text-[#dadada] dark:from-white dark:to-slate-900/10 lg:text-lg">
+                  Get Started
+                </span>
+              </ShimmerButton>
+            </Link>}
         </section>
 
 

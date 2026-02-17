@@ -5,6 +5,7 @@ import { SendHorizontal, Square } from 'lucide-react';
 import { useState, useEffect, useRef } from "react";
 import BounceLoader from "../ui/loader";
 import { useChat, UIMessage } from "@ai-sdk/react"
+import { toast } from "sonner"
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios"; // Make sure you have axios installed
 import { DefaultChatTransport } from "ai";
@@ -29,13 +30,11 @@ export default function ChatComponent({ chatId, fileKey }: Props) {
   });
 
   // 2. Initialize Vercel AI SDK
-  const { messages, setMessages, sendMessage, status, error, stop } = useChat({
+  const { messages, setMessages, sendMessage, status, error, stop, reload } = useChat({
     transport: new DefaultChatTransport({
       api: '/api/chat',           // now lives here
     }),
-    // You can still pass global body fields if needed
-    // body: { chatId, fileKey },   // ← usually not needed here anymore
-  });
+  }) as any;
 
   // 3. Sync fetched DB messages into the Chat SDK state
   useEffect(() => {
@@ -43,6 +42,17 @@ export default function ChatComponent({ chatId, fileKey }: Props) {
       setMessages(dbMessages);
     }
   }, [dbMessages, setMessages]);
+
+  // Error handling effect
+  useEffect(() => {
+    if (error) {
+      toast.error("An error occurred. Retrying...", {
+        description: error.message,
+      });
+      // reload(); // reload might be undefined in types?
+      (reload as any)?.();
+    }
+  }, [error, reload]);
 
   // 4. Auto-scroll to bottom when new messages arrive
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -72,16 +82,12 @@ export default function ChatComponent({ chatId, fileKey }: Props) {
   }
 
   return (
-    <div className="relative flex flex-col h-screen bg-[#0a0a0a] text-gray-100">
+    <div className="relative flex flex-col h-full bg-[#0a0a0a] text-gray-100">
       {/* Messages Area */}
       <div className="flex-1 overflow-y-auto px-4 py-8 space-y-6">
-        {error && (
-          <div className="text-red-400 text-sm px-4 py-3 bg-red-950/20 border border-red-900/30 rounded-lg">
-            {error.message}
-          </div>
-        )}
 
-        {messages.map((message) => (
+
+        {messages.map((message: any) => (
           <div
             key={message.id}
             className={`flex ${message.role === "user" ? "justify-end" : "justify-start"} animate-in fade-in duration-300`}
@@ -103,7 +109,7 @@ export default function ChatComponent({ chatId, fileKey }: Props) {
               >
                 {/* AI SDK 5.0 Rendering Logic */}
                 {message.parts ? (
-                  message.parts.map((part, index) => {
+                  message.parts.map((part: any, index: any) => {
                     if (part.type === "text") {
                       return (
                         <p key={index} className="whitespace-pre-wrap text-sm leading-relaxed">

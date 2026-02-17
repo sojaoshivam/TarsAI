@@ -1,6 +1,7 @@
 "use client"
 import { DrizzleChat } from '@/app/lib/db/schema'
 import Link from 'next/link'
+import Image from 'next/image'
 import { Button } from '../ui/button'
 import { PlusCircle, FileText, Sparkles, User, Loader2, AlertCircle } from 'lucide-react'
 import { cn } from '@/app/lib/utils'
@@ -12,11 +13,23 @@ import { toast } from 'sonner'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useUser } from '@clerk/nextjs'
+import { MorphingText } from "@/components/ui/morphing-text";
 
 type Props = {
     chats: DrizzleChat[],
     chatId: number
 }
+
+const texts = [
+    "TARS",
+    "टार्स",
+    "ターズ",
+    "Тарз",
+    "تارس",
+    "Ταρς",
+    "타스",
+    "塔斯",
+];
 
 const Sidebar = ({ chatId, chats }: Props) => {
     const router = useRouter()
@@ -111,8 +124,26 @@ const Sidebar = ({ chatId, chats }: Props) => {
     const percentage = (pdfCount / pdfLimit) * 100
 
     return (
-        <div className='w-full h-screen p-4 bg-[#0a0a0a] border-r border-gray-800/50 flex flex-col' {...getRootProps()}>
+        <div className='w-full h-full px-4 pt-4 bg-[#0a0a0a] border-r border-gray-800/50 flex flex-col' {...getRootProps()}>
             <input {...getInputProps()} />
+
+            {/* Logo & Dashboard Link */}
+            <Link href="/dashboard" className="flex items-center mb-6 px-1 group cursor-pointer">
+                {/* <div className="relative w-8 h-8  overflow-hidden ">
+                    <Image
+                        src="/logo1.png"
+                        alt="TARS AI"
+                        fill
+                        className="object-cover"
+                    />
+                </div> */}
+                <div className="w-24 h-10 flex items-center">
+                    <MorphingText
+                        texts={texts}
+                        className="text-2xl h-10 md:h-8 lg:text-3xl leading-none"
+                    />
+                </div>
+            </Link>
 
             {/* New Chat Button */}
             <Button
