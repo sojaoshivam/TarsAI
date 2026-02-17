@@ -4,9 +4,10 @@
   "private": true,
   "scripts": {
     "dev": "next dev --webpack",
-    "build": "next build",
+    "build": "next build --webpack",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "webhook": "npx ngrok http 3000"
   },
   "dependencies": {
     "@ai-sdk/google": "^3.0.0",
@@ -23,6 +24,7 @@
     "@radix-ui/react-slot": "^1.2.4",
     "@tanstack/react-query": "^5.90.12",
     "@types/md5": "^2.3.6",
+    "@types/pg": "^8.16.0",
     "ai": "^6.0.1",
     "aws-sdk": "^2.1692.0",
     "axios": "^1.13.2",
@@ -36,6 +38,7 @@
     "md5": "^2.3.0",
     "next": "^16.0.3",
     "pdf-parse": "^1.1.1",
+    "pg": "^8.18.0",
     "radix-ui": "^1.4.3",
     "react": "^19.2.4",
     "react-countup": "^6.5.3",

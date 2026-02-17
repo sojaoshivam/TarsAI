@@ -28,15 +28,15 @@ const DashboardPage = async () => {
     const subscription = await checkSubscription()
 
     return (
-        <div className="flex max-h-screen overflow-hidden bg-[#0a0a0a]">
+        <div className="flex h-screen overflow-hidden bg-[#0a0a0a]">
             <div className="flex w-full h-full flex-col md:flex-row">
                 {/* Desktop Sidebar */}
-                <div className="hidden md:flex flex-[1] px-4 max-w-md border-r border-gray-800/50">
+                <div className="hidden md:flex flex-[1] max-w-md border-r border-gray-800/50">
                     <Sidebar chatId={0} chats={_chats} />
                 </div>
 
                 {/* Main Dashboard Content */}
-                <div className="flex-[8] max-h-screen overflow-y-auto bg-[#0a0a0a]">
+                <div className="flex-[8] h-full overflow-y-auto bg-[#0a0a0a]">
 
                     {/* Mobile Header */}
                     <div className="md:hidden flex items-center p-4 border-b border-gray-800 sticky top-0 bg-[#0a0a0a]/95 backdrop-blur z-50">

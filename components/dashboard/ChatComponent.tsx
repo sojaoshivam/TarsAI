@@ -6,7 +6,7 @@ import { useState, useEffect, useRef } from "react";
 import BounceLoader from "../ui/loader";
 import { useChat, UIMessage } from "@ai-sdk/react"
 import { toast } from "sonner"
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios"; // Make sure you have axios installed
 import { DefaultChatTransport } from "ai";
 
@@ -18,6 +18,11 @@ type Props = {
 
 export default function ChatComponent({ chatId, fileKey }: Props) {
   const [input, setInput] = useState("")
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
 
   // 1. Fetch messages from DB using TanStack Query
   const { data: dbMessages, isLoading } = useQuery({
@@ -30,10 +35,14 @@ export default function ChatComponent({ chatId, fileKey }: Props) {
   });
 
   // 2. Initialize Vercel AI SDK
+  const queryClient = useQueryClient();
   const { messages, setMessages, sendMessage, status, error, stop, reload } = useChat({
     transport: new DefaultChatTransport({
-      api: '/api/chat',           // now lives here
+      api: '/api/chat',
     }),
+    onFinish: () => {
+      queryClient.invalidateQueries({ queryKey: ["chat", chatId] });
+    },
   }) as any;
 
   // 3. Sync fetched DB messages into the Chat SDK state
@@ -157,6 +166,7 @@ export default function ChatComponent({ chatId, fileKey }: Props) {
           <div className="flex items-end gap-2">
             <div className="flex-1 relative">
               <Input
+                ref={inputRef}
                 placeholder="Message TARS..."
                 onChange={(e) => setInput(e.target.value)}
                 value={input}

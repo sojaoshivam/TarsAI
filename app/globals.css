@@ -1,14 +1,22 @@
 @import "tailwindcss";
+@import "tailwindcss";
 @import "tw-animate-css";
 
 @custom-variant dark (&:is(.dark *));
 
-h1, h2, h3, h4, h5, h6 {
-    font-family: var(--font-playfair-display); 
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-playfair-display);
 }
-p{
-  font-family: var(--font-albert-sans); 
+
+p {
+  font-family: var(--font-albert-sans);
 }
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -53,18 +61,22 @@ p{
     0% {
       transform: translateY(-50%);
     }
+
     100% {
       transform: translateY(0);
     }
   }
+
   @keyframes grid {
-  0% {
-    transform: translateY(-50%);
+    0% {
+      transform: translateY(-50%);
     }
-  100% {
-    transform: translateY(0);
+
+    100% {
+      transform: translateY(0);
     }
   }
+
   --animate-shimmer-slide: shimmer-slide var(--speed) ease-in-out infinite alternate;
   --animate-spin-around: spin-around calc(var(--speed) * 2) infinite linear;
 
@@ -72,12 +84,17 @@ p{
     0% {
       transform: translateZ(0) rotate(0);
     }
-    15%, 35% {
+
+    15%,
+    35% {
       transform: translateZ(0) rotate(90deg);
     }
-    65%, 85% {
+
+    65%,
+    85% {
       transform: translateZ(0) rotate(270deg);
     }
+
     100% {
       transform: translateZ(0) rotate(360deg);
     }
@@ -88,61 +105,75 @@ p{
       transform: translate(calc(100cqw - 100%), 0);
     }
   }
+
   @keyframes spin-around {
-  0% {
-    transform: translateZ(0) rotate(0);
+    0% {
+      transform: translateZ(0) rotate(0);
     }
-  15%, 35% {
-    transform: translateZ(0) rotate(90deg);
+
+    15%,
+    35% {
+      transform: translateZ(0) rotate(90deg);
     }
-  65%, 85% {
-    transform: translateZ(0) rotate(270deg);
+
+    65%,
+    85% {
+      transform: translateZ(0) rotate(270deg);
     }
-  100% {
-    transform: translateZ(0) rotate(360deg);
+
+    100% {
+      transform: translateZ(0) rotate(360deg);
     }
   }
+
   @keyframes shimmer-slide {
-  to {
-    transform: translate(calc(100cqw - 100%), 0);
+    to {
+      transform: translate(calc(100cqw - 100%), 0);
     }
   }
+
   --animate-accordion-down: accordion-down 0.2s ease-out;
   --animate-accordion-up: accordion-up 0.2s ease-out;
 
   @keyframes accordion-down {
     from {
-      height: 0; 
-        }
-    to {
-      height: var(--radix-accordion-content-height); 
-        } 
+      height: 0;
     }
+
+    to {
+      height: var(--radix-accordion-content-height);
+    }
+  }
 
   @keyframes accordion-up {
     from {
-      height: var(--radix-accordion-content-height); 
-        }
+      height: var(--radix-accordion-content-height);
+    }
+
     to {
-      height: 0; 
-        } 
+      height: 0;
     }
+  }
+
   @keyframes accordion-down {
-  from {
-    height: 0; 
-        }
-  to {
-    height: var(--radix-accordion-content-height); 
-        } 
+    from {
+      height: 0;
     }
+
+    to {
+      height: var(--radix-accordion-content-height);
+    }
+  }
+
   @keyframes accordion-up {
-  from {
-    height: var(--radix-accordion-content-height); 
-        }
-  to {
-    height: 0; 
-        } 
+    from {
+      height: var(--radix-accordion-content-height);
     }
+
+    to {
+      height: 0;
+    }
+  }
 }
 
 :root {
@@ -218,6 +249,7 @@ p{
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground;
   }
