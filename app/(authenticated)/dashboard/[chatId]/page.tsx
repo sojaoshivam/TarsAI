@@ -1,8 +1,5 @@
 import { db } from "@/app/lib/db"
 import { chats, messages } from "@/app/lib/db/schema"
-import PdfViewer from "@/components/dashboard/PdfViewer"
-import Sidebar from "@/components/dashboard/Sidebar"
-import ChatComponent from "@/components/dashboard/ChatComponent"
 import ChatPageClient from "./ChatPageClient"
 import { auth } from "@clerk/nextjs/server"
 import { eq, asc } from "drizzle-orm"
@@ -59,7 +56,6 @@ const ChatsPage = async ({ params }: Props) => {
             chatId={chatIdNum}
             initialMessages={initialMessages}
             currentChat={currentChat!}
-            chats={_chats}
         />
     )
 }

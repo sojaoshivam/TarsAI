@@ -10,7 +10,7 @@ export async function checkSubscription() {
   const { userId } = await auth();
 
   if (!userId) {
-    return { isValid: false, plan: "free" as const };
+    return { isValid: false, plan: "free" as const, pdfCount: 0, pdfLimit: 2 };
   }
 
   const _userSubscriptions = await db
@@ -20,12 +20,35 @@ export async function checkSubscription() {
 
   if (!_userSubscriptions[0]) {
     // Create free plan subscription for new user
-    await db.insert(userSubscriptions).values({
-      userId,
-      plan: "free",
-      pdfCount: 0,
-    });
-    return { isValid: false, plan: "free" as const };
+    // Handle race condition if another request creates the subscription simultaneously
+    try {
+      await db.insert(userSubscriptions).values({
+        userId,
+        plan: "free",
+        pdfCount: 0,
+      });
+      return { isValid: false, plan: "free" as const, pdfCount: 0, pdfLimit: 2 };
+    } catch (error: unknown) {
+      // If insert fails due to unique constraint (race condition),
+      // fetch the subscription that was inserted by the other request
+      if (error instanceof Error && error.message.includes('unique')) {
+        const retrySubscriptions = await db
+          .select()
+          .from(userSubscriptions)
+          .where(eq(userSubscriptions.userId, userId));
+
+        if (retrySubscriptions[0]) {
+          const sub = retrySubscriptions[0];
+          return {
+            isValid: false,
+            plan: sub.plan as "free" | "pro",
+            pdfCount: sub.pdfCount || 0,
+            pdfLimit: sub.plan === "free" ? 2 : 10,
+          };
+        }
+      }
+      throw error;
+    }
   }
 
   const subscription = _userSubscriptions[0];
@@ -55,7 +78,7 @@ export async function checkSubscription() {
   return {
     isValid,
     plan: subscription.plan,
-    pdfCount: subscription.pdfCount,
+    pdfCount: subscription.pdfCount || 0,
     pdfLimit: subscription.plan === "free" ? 2 : 10,
   };
 }

@@ -5,6 +5,7 @@ import { db } from "@/app/lib/db";
 import { chats, messages as messagesTable } from "@/app/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { auth } from "@clerk/nextjs/server";
+import { ChatMessage, SanitizedMessage, ContentPart } from "@/app/lib/types";
 
 export async function POST(req: Request) {
   try {
@@ -39,14 +40,14 @@ export async function POST(req: Request) {
     } else if (Array.isArray(lastMessage.content)) {
       // Handle array of content parts
       lastMessageText = lastMessage.content
-        .filter((part: any) => part.type === 'text')
-        .map((part: any) => part.text)
+        .filter((part: ContentPart) => part.type === 'text')
+        .map((part: ContentPart) => part.type === 'text' ? part.text : '')
         .join(' ');
     } else if (lastMessage.parts && Array.isArray(lastMessage.parts)) {
       // Handle parts array (older SDK format)
       lastMessageText = lastMessage.parts
-        .filter((part: any) => part.type === 'text')
-        .map((part: any) => part.text)
+        .filter((part: ContentPart) => part.type === 'text')
+        .map((part: ContentPart) => part.type === 'text' ? part.text : '')
         .join(' ');
     }
 
@@ -79,9 +80,10 @@ Do not make up information.`;
     // 5. Sanitize History for Gemini
     // Convert 'system' role messages to 'assistant' (Gemini doesn't support 'system' in history)
     // Remove the last message as we'll add it separately
-    const sanitizedMessages = messages.slice(0, -1).map((msg: any) => {
-      const sanitizedMsg: any = {
+    const sanitizedMessages: SanitizedMessage[] = messages.slice(0, -1).map((msg: ChatMessage) => {
+      const sanitizedMsg: SanitizedMessage = {
         role: msg.role === 'system' ? 'assistant' : msg.role,
+        content: '',
       };
 
       // Ensure content is a string
@@ -89,13 +91,13 @@ Do not make up information.`;
         sanitizedMsg.content = msg.content;
       } else if (Array.isArray(msg.content)) {
         sanitizedMsg.content = msg.content
-          .filter((part: any) => part.type === 'text')
-          .map((part: any) => part.text)
+          .filter((part: ContentPart) => part.type === 'text')
+          .map((part: ContentPart) => part.type === 'text' ? part.text : '')
           .join(' ');
       } else if (msg.parts && Array.isArray(msg.parts)) {
         sanitizedMsg.content = msg.parts
-          .filter((part: any) => part.type === 'text')
-          .map((part: any) => part.text)
+          .filter((part: ContentPart) => part.type === 'text')
+          .map((part: ContentPart) => part.type === 'text' ? part.text : '')
           .join(' ');
       } else {
         sanitizedMsg.content = '';

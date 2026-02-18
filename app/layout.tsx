@@ -8,7 +8,7 @@ import { Toaster } from 'sonner'
 const inter = Inter({
   variable: "--font-inter",
   subsets: ["latin"],
-  // weight:["200"]
+
 });
 
 const playfir = Playfair_Display({

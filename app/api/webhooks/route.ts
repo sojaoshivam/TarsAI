@@ -4,12 +4,36 @@ import { eq } from "drizzle-orm";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { clerkClient } from "@clerk/nextjs/server";
+import { verifyDodoSignature, getWebhookSecret } from "@/app/lib/webhook-verification";
 
 export async function POST(req: Request) {
   console.log("🚀 WEBHOOK POST RECEIVED!");
 
   try {
     const body = await req.text();
+
+    // Verify webhook signature
+    const headersList = await headers();
+    const signature = headersList.get('x-signature') || headersList.get('stripe-signature') || '';
+    const webhookSecret = getWebhookSecret('dodo');
+
+    if (!webhookSecret) {
+      console.error('Webhook secret not configured');
+      return new NextResponse('Webhook not configured', { status: 500 });
+    }
+
+    if (!signature) {
+      console.error('Missing webhook signature');
+      return new NextResponse('Unauthorized: Missing signature', { status: 401 });
+    }
+
+    // Verify signature (assuming Dodo payments by default)
+    const isValid = verifyDodoSignature(body, signature, webhookSecret);
+    if (!isValid) {
+      console.error('Invalid webhook signature');
+      return new NextResponse('Unauthorized: Invalid signature', { status: 401 });
+    }
+
     const event = JSON.parse(body);
 
     console.log('--- WEBHOOK START ---');
@@ -57,7 +81,7 @@ export async function POST(req: Request) {
 
       if (!userId) {
         console.error("Webhook: User ID not found");
-        return new NextResponse("User ID not found", { status: 200 }); // Return 200 to satisfy webhook
+        return new NextResponse("User ID not found", { status: 400 }); // Return 400 for bad request
       }
 
       // Update or create subscription

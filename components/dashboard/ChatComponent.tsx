@@ -7,7 +7,7 @@ import BounceLoader from "../ui/loader";
 import { useChat, UIMessage } from "@ai-sdk/react"
 import { toast } from "sonner"
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import axios from "axios"; // Make sure you have axios installed
+import axios from "axios";
 import { DefaultChatTransport } from "ai";
 
 type Props = {
@@ -36,14 +36,14 @@ export default function ChatComponent({ chatId, fileKey }: Props) {
 
   // 2. Initialize Vercel AI SDK
   const queryClient = useQueryClient();
-  const { messages, setMessages, sendMessage, status, error, stop, reload } = useChat({
+  const { messages, setMessages, sendMessage, status, error, stop } = useChat({
     transport: new DefaultChatTransport({
       api: '/api/chat',
     }),
     onFinish: () => {
       queryClient.invalidateQueries({ queryKey: ["chat", chatId] });
     },
-  }) as any;
+  });
 
   // 3. Sync fetched DB messages into the Chat SDK state
   useEffect(() => {
@@ -55,13 +55,11 @@ export default function ChatComponent({ chatId, fileKey }: Props) {
   // Error handling effect
   useEffect(() => {
     if (error) {
-      toast.error("An error occurred. Retrying...", {
+      toast.error("An error occurred while sending your message.", {
         description: error.message,
       });
-      // reload(); // reload might be undefined in types?
-      (reload as any)?.();
     }
-  }, [error, reload]);
+  }, [error]);
 
   // 4. Auto-scroll to bottom when new messages arrive
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -96,7 +94,7 @@ export default function ChatComponent({ chatId, fileKey }: Props) {
       <div className="flex-1 overflow-y-auto px-4 py-8 space-y-6">
 
 
-        {messages.map((message: any) => (
+        {messages.map((message: UIMessage) => (
           <div
             key={message.id}
             className={`flex ${message.role === "user" ? "justify-end" : "justify-start"} animate-in fade-in duration-300`}
@@ -117,8 +115,8 @@ export default function ChatComponent({ chatId, fileKey }: Props) {
                   }`}
               >
                 {/* AI SDK 5.0 Rendering Logic */}
-                {message.parts ? (
-                  message.parts.map((part: any, index: any) => {
+                {message.parts && Array.isArray(message.parts) ? (
+                  message.parts.map((part: any, index: number) => {
                     if (part.type === "text") {
                       return (
                         <p key={index} className="whitespace-pre-wrap text-sm leading-relaxed">
@@ -129,6 +127,7 @@ export default function ChatComponent({ chatId, fileKey }: Props) {
                     return null;
                   })
                 ) : (
+                  // Fallback if parts are missing (rare)
                   // Fallback if parts are missing (rare)
                   <p className="whitespace-pre-wrap text-sm leading-relaxed">
                     {(message as any).content}

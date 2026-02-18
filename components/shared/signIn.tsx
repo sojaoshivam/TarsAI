@@ -2,10 +2,10 @@
 
 import Image from "next/image";
 import * as React from "react"
-
+import { LinkProps, AuthError } from "@/app/lib/types"
 
 // Mock Link for preview
-const Link = ({ href, children, className }: any) => (
+const Link = ({ href, children, className }: LinkProps) => (
     <a href={href} className={className} onClick={(e) => e.preventDefault()}>{children}</a>
 );
 
@@ -15,11 +15,31 @@ const useRouter = () => ({
 });
 
 // Mock useSignIn for preview
+interface SignInCreateParams {
+    identifier: string;
+    password: string;
+}
+
+interface AuthenticateWithRedirectParams {
+    strategy: string;
+    redirectUrl?: string;
+    redirectUrlComplete?: string;
+}
+
+interface SignInResult {
+    status: string;
+    createdSessionId: string;
+}
+
+interface SetActiveParams {
+    session: string;
+}
+
 const useSignIn = () => {
     return {
         isLoaded: true,
         signIn: {
-            create: async ({ identifier, password }: any) => {
+            create: async ({ identifier, password }: SignInCreateParams): Promise<SignInResult> => {
                 console.log(`[Mock Clerk] Attempting sign in with: ${identifier}`);
                 await new Promise((resolve) => setTimeout(resolve, 1000)); // Simulate network delay
 
@@ -29,12 +49,12 @@ const useSignIn = () => {
                 }
                 return { status: "complete", createdSessionId: "sess_123mock" };
             },
-            authenticateWithRedirect: async ({ strategy }: any) => {
+            authenticateWithRedirect: async ({ strategy }: AuthenticateWithRedirectParams): Promise<void> => {
                 console.log(`[Mock Clerk] OAuth Redirect with strategy: ${strategy}`);
                 await new Promise((resolve) => setTimeout(resolve, 800));
             }
         },
-        setActive: async ({ session }: any) => console.log(`[Mock Clerk] Setting active session: ${session}`),
+        setActive: async ({ session }: SetActiveParams): Promise<void> => console.log(`[Mock Clerk] Setting active session: ${session}`),
     };
 };
 
@@ -88,10 +108,11 @@ const SignIn1 = () => {
                 // If 2FA or other steps are required, you would handle them here
                 console.log("Sign in requires further steps:", result);
             }
-        } catch (err: any) {
-            console.error("Error:", err.errors?.[0] || err);
+        } catch (err: unknown) {
+            const error = err as AuthError;
+            console.error("Error:", error.message);
             // Display the error message from Clerk (e.g., "Incorrect password")
-            setError(err.errors?.[0]?.longMessage || "Failed to sign in");
+            setError(error.message || "Failed to sign in");
         } finally {
             setIsLoading(false);
         }
@@ -109,8 +130,9 @@ const SignIn1 = () => {
                 redirectUrlComplete: "/dashboard", // Final destination
             });
             alert("Redirecting to Google...");
-        } catch (err: any) {
-            console.error("Google Sign In Error:", err);
+        } catch (err: unknown) {
+            const error = err as AuthError;
+            console.error("Google Sign In Error:", error);
             setError("An error occurred with Google Sign In");
         } finally {
             setIsLoading(false);

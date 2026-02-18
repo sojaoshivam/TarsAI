@@ -1,19 +1,28 @@
 "use client"
 import { DrizzleChat } from '@/app/lib/db/schema'
 import Link from 'next/link'
-import Image from 'next/image'
+import NextImage from 'next/image'
 import { Button } from '../ui/button'
-import { PlusCircle, FileText, Sparkles, User, Loader2, AlertCircle } from 'lucide-react'
+import { PlusCircle, FileText, Sparkles, User, Loader2, AlertCircle, Trash2 } from 'lucide-react'
 import { cn } from '@/app/lib/utils'
 import { useDropzone } from 'react-dropzone'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { uploadToS3 } from '@/app/lib/db/s3'
-import axios from "axios"
+import axios, { AxiosError } from "axios"
 import { toast } from 'sonner'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useUser } from '@clerk/nextjs'
 import { MorphingText } from "@/components/ui/morphing-text";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from "@/components/ui/dialog"
 
 type Props = {
     chats: DrizzleChat[],
@@ -36,13 +45,16 @@ const Sidebar = ({ chatId, chats }: Props) => {
     const { user } = useUser()
     const [uploading, setUploading] = useState(false)
 
-    // Fetch subscription status
-    const { data: subscriptionData, refetch } = useQuery({
+    // Fetch subscription status with better error handling
+    const { data: subscriptionData, refetch, isLoading: isSubscriptionLoading } = useQuery({
         queryKey: ['subscription'],
         queryFn: async () => {
             const response = await axios.get('/api/subscription')
             return response.data
         },
+        retry: 2,
+        retryDelay: 500,
+        staleTime: 5000, // Cache for 5 seconds
     })
 
     const { mutate, isPending } = useMutation({
@@ -52,6 +64,29 @@ const Sidebar = ({ chatId, chats }: Props) => {
                 file_name
             })
             return response.data;
+        },
+        // Refetch subscription after successful upload
+        onSuccess: () => {
+            console.log('Chat created, refetching subscription...');
+            refetch();
+        }
+    })
+
+    const { mutate: deleteChat, isPending: isDeleting } = useMutation({
+        mutationFn: async (chatId: number) => {
+            const response = await axios.post('/api/delete-chat', {
+                chatId
+            })
+            return response.data
+        },
+        onSuccess: () => {
+            toast.success("Chat deleted successfully")
+            refetch();
+            router.refresh();
+        },
+        onError: (error) => {
+            console.error(error);
+            toast.error("Error deleting chat")
         }
     })
 
@@ -91,12 +126,14 @@ const Sidebar = ({ chatId, chats }: Props) => {
                 mutate(data, {
                     onSuccess: ({ chat_id }) => {
                         toast.success("Chat created successfully!")
-                        refetch() // Refresh subscription data
-                        router.push(`/dashboard/${chat_id}`)
+                        // Give time for subscription refetch to complete before navigation
+                        setTimeout(() => {
+                            router.push(`/dashboard/${chat_id}`)
+                        }, 500);
                     },
-                    onError: (error: any) => {
-                        const errorMessage = error?.response?.data?.error || "Error creating chat"
-                        toast.error(errorMessage)
+                    onError: (error) => {
+                        console.error(error);
+                        toast.error("Error creating chat")
                     }
                 })
 
@@ -113,7 +150,7 @@ const Sidebar = ({ chatId, chats }: Props) => {
         try {
             const response = await axios.post('/api/checkout')
             window.location.href = response.data.url
-        } catch (error) {
+        } catch {
             toast.error("Failed to start checkout")
         }
     }
@@ -123,13 +160,17 @@ const Sidebar = ({ chatId, chats }: Props) => {
     const plan = subscriptionData?.plan || "free"
     const percentage = (pdfCount / pdfLimit) * 100
 
-    return (
-        <div className='w-full h-full px-4 pt-4 bg-[#0a0a0a] border-r border-gray-800/50 flex flex-col' {...getRootProps()}>
-            <input {...getInputProps()} />
+    const [chatToDelete, setChatToDelete] = useState<number | null>(null)
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
 
-            {/* Logo & Dashboard Link */}
-            <Link href="/dashboard" className="flex items-center mb-6 px-1 group cursor-pointer">
-                {/* <div className="relative w-8 h-8  overflow-hidden ">
+    return (
+        <>
+            <div className='w-full h-full px-4 pt-4 bg-[#0a0a0a] border-r border-gray-800/50 flex flex-col' {...getRootProps()}>
+                <input {...getInputProps()} />
+
+                {/* Logo & Dashboard Link */}
+                <Link href="/" className="flex items-center mb-6 px-1 group cursor-pointer">
+                    {/* <div className="relative w-8 h-8  overflow-hidden ">
                     <Image
                         src="/logo1.png"
                         alt="TARS AI"
@@ -137,154 +178,216 @@ const Sidebar = ({ chatId, chats }: Props) => {
                         className="object-cover"
                     />
                 </div> */}
-                <div className="w-24 h-10 flex items-center">
-                    <MorphingText
-                        texts={texts}
-                        className="text-2xl h-10 md:h-8 lg:text-3xl leading-none"
-                    />
-                </div>
-            </Link>
-
-            {/* New Chat Button */}
-            <Button
-                onClick={(e) => {
-                    e.stopPropagation()
-                    if (pdfCount >= pdfLimit) {
-                        toast.error(
-                            plan === "free"
-                                ? "Free plan limit reached! Upgrade to Pro."
-                                : "Monthly PDF limit reached."
-                        )
-                        return;
-                    }
-                    open()
-                }}
-                disabled={uploading || isPending}
-                className='w-full rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-400 transition-all h-11 disabled:opacity-50 disabled:cursor-not-allowed'
-            >
-                {(uploading || isPending) ? (
-                    <>
-                        <Loader2 className='mr-2 w-4 h-4 animate-spin' />
-                        Uploading...
-                    </>
-                ) : (
-                    <>
-                        <PlusCircle className='mr-2 w-4 h-4' />
-                        New Chat
-                    </>
-                )}
-            </Button>
-
-            {/* PDF Limit Warning */}
-            {pdfCount >= pdfLimit && (
-                <div className='mt-3 p-2 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-start gap-2'>
-                    <AlertCircle className='w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5' />
-                    <p className='text-xs text-amber-400'>
-                        {plan === "free"
-                            ? "PDF limit reached. Upgrade to continue."
-                            : "Monthly limit reached. Resets next month."}
-                    </p>
-                </div>
-            )}
-
-            {/* Chats List */}
-            <div className="flex flex-col mt-6 gap-1.5 flex-1 overflow-y-auto">
-                {chats.map(chat => (
-                    <Link key={chat.id} href={`/dashboard/${chat.id}`}>
-                        <div className={
-                            cn('rounded-lg flex p-3 items-center transition-all group', {
-                                'bg-cyan-500/10 border border-cyan-500/30 text-cyan-400': chat.id === chatId,
-                                'hover:bg-[#141414] text-gray-400 hover:text-gray-200': chat.id !== chatId,
-                            })
-                        }>
-                            <FileText className='mr-2 w-4 h-4 flex-shrink-0' />
-                            <p className='w-full overflow-hidden text-sm truncate whitespace-nowrap text-ellipsis'>
-                                {chat.pdfName}
-                            </p>
-                        </div>
-                    </Link>
-                ))}
-            </div>
-
-            {/* Bottom Section */}
-            <div className='mt-auto space-y-3'>
-                {/* PDF Usage */}
-                <div className='p-3 rounded-lg bg-[#141414] border border-gray-800'>
-                    <div className='flex items-center justify-between mb-2'>
-                        <span className='text-xs font-medium text-gray-400'>PDFs This Month</span>
-                        <span className={cn('text-sm font-semibold', {
-                            'text-cyan-400': pdfCount < pdfLimit * 0.8,
-                            'text-amber-400': pdfCount >= pdfLimit * 0.8 && pdfCount < pdfLimit,
-                            'text-red-400': pdfCount >= pdfLimit,
-                        })}>
-                            {pdfCount} / {pdfLimit}
-                        </span>
-                    </div>
-                    <div className='w-full bg-gray-800 rounded-full h-1.5 overflow-hidden'>
-                        <div
-                            className={cn('h-full rounded-full transition-all', {
-                                'bg-gradient-to-r from-cyan-500 to-blue-500': percentage < 80,
-                                'bg-gradient-to-r from-amber-500 to-orange-500': percentage >= 80 && percentage < 100,
-                                'bg-gradient-to-r from-red-500 to-red-600': percentage >= 100,
-                            })}
-                            style={{ width: `${Math.min(percentage, 100)}%` }}
+                    <div className="w-24 h-10 flex items-center">
+                        <MorphingText
+                            texts={texts}
+                            className="text-2xl h-10 md:h-8 lg:text-3xl leading-none"
                         />
                     </div>
-                    <p className='text-xs text-gray-500 mt-1.5'>
-                        {plan === "free" ? "Free Plan" : "Pro Plan"}
-                    </p>
-                </div>
+                </Link>
 
-                {/* Upgrade Button */}
-                {plan === "free" && (
-                    <Button
-                        className='w-full rounded-xl bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white transition-all h-11 font-medium shadow-lg shadow-cyan-500/20'
-                        onClick={handleUpgrade}
-                    >
-                        <Sparkles className='mr-2 w-4 h-4' />
-                        Upgrade to Pro
-                    </Button>
+                {/* New Chat Button */}
+                <Button
+                    onClick={(e) => {
+                        e.stopPropagation()
+                        if (pdfCount >= pdfLimit) {
+                            toast.error(
+                                plan === "free"
+                                    ? "Free plan limit reached! Upgrade to Pro."
+                                    : "Monthly PDF limit reached."
+                            )
+                            return;
+                        }
+                        open()
+                    }}
+                    disabled={uploading || isPending}
+                    className='w-full rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-400 transition-all h-11 disabled:opacity-50 disabled:cursor-not-allowed'
+                >
+                    {(uploading || isPending) ? (
+                        <>
+                            <Loader2 className='mr-2 w-4 h-4 animate-spin' />
+                            Uploading...
+                        </>
+                    ) : (
+                        <>
+                            <PlusCircle className='mr-2 w-4 h-4' />
+                            New Chat
+                        </>
+                    )}
+                </Button>
+
+                {/* PDF Limit Warning */}
+                {pdfCount >= pdfLimit && (
+                    <div className='mt-3 p-2 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-start gap-2'>
+                        <AlertCircle className='w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5' />
+                        <p className='text-xs text-amber-400'>
+                            {plan === "free"
+                                ? "PDF limit reached. Upgrade to continue."
+                                : "Monthly limit reached. Resets next month."}
+                        </p>
+                    </div>
                 )}
 
-                {/* Account Info */}
-                <div className='p-3 rounded-lg bg-[#141414] border border-gray-800'>
-                    <div className='flex items-center gap-3'>
-                        <div className='w-8 h-8 rounded-full bg-cyan-500/20 flex items-center justify-center border border-cyan-500/30'>
-                            {user?.imageUrl ? (
-                                <img
-                                    src={user.imageUrl}
-                                    alt="Profile"
-                                    className='w-full h-full rounded-full object-cover'
-                                />
-                            ) : (
-                                <User className='w-4 h-4 text-cyan-400' />
-                            )}
-                        </div>
-                        <div className='flex-1 min-w-0'>
-                            <p className='text-sm font-medium text-gray-200 truncate'>
-                                {user?.fullName || user?.firstName || 'User'}
-                            </p>
-                            <p className='text-xs text-gray-500 truncate'>
-                                {plan === "free" ? "Free Plan" : "Pro Plan"}
-                            </p>
-                        </div>
-                    </div>
+                {/* Chats List */}
+                <div className="flex flex-col mt-6 gap-1.5 flex-1 overflow-y-auto">
+                    {chats.map(chat => (
+                        <Link key={chat.id} href={`/dashboard/${chat.id}`}>
+                            <div className={
+                                cn('rounded-lg flex p-3 items-center transition-all group', {
+                                    'bg-cyan-500/10 border border-cyan-500/30 text-cyan-400': chat.id === chatId,
+                                    'hover:bg-[#141414] text-gray-400 hover:text-gray-200': chat.id !== chatId,
+                                })
+                            }>
+                                <FileText className='mr-2 w-4 h-4 flex-shrink-0' />
+                                <p className='w-full overflow-hidden text-sm truncate whitespace-nowrap text-ellipsis'>
+                                    {chat.pdfName}
+                                </p>
+                                <div className='ml-auto pl-2 opacity-0 group-hover:opacity-100 transition-opacity flex items-center'>
+                                    <Button
+                                        onClick={(e) => {
+                                            e.preventDefault()
+                                            e.stopPropagation()
+                                            setChatToDelete(chat.id)
+                                            setIsDeleteDialogOpen(true)
+                                        }}
+                                        variant="ghost"
+                                        size="icon"
+                                        className='h-6 w-6 text-gray-500 hover:text-red-400 hover:bg-red-500/10'
+                                        disabled={isDeleting}
+                                    >
+                                        <Trash2 className='w-3 h-3' />
+                                    </Button>
+                                </div>
+                            </div>
+                        </Link>
+                    ))}
                 </div>
 
-                {/* Footer Links */}
-                <div className='pt-3 border-t border-gray-800/50'>
-                    <div className='flex items-center justify-center gap-4 text-xs text-gray-500'>
-                        <Link href='/help' className='hover:text-cyan-400 transition-colors'>
-                            Help
-                        </Link>
-                        <span className='text-gray-700'>•</span>
-                        <Link href='/settings' className='hover:text-cyan-400 transition-colors'>
-                            Settings
-                        </Link>
+                {/* Bottom Section */}
+                <div className='mt-auto space-y-3'>
+                    {/* PDF Usage */}
+                    <div className='p-3 rounded-lg bg-[#141414] border border-gray-800'>
+                        <div className='flex items-center justify-between mb-2'>
+                            <span className='text-xs font-medium text-gray-400'>PDFs This Month</span>
+                            <span className={cn('text-sm font-semibold', {
+                                'text-cyan-400': pdfCount < pdfLimit * 0.8,
+                                'text-amber-400': pdfCount >= pdfLimit * 0.8 && pdfCount < pdfLimit,
+                                'text-red-400': pdfCount >= pdfLimit,
+                            })}>
+                                {pdfCount} / {pdfLimit}
+                            </span>
+                        </div>
+                        <div className='w-full bg-gray-800 rounded-full h-1.5 overflow-hidden'>
+                            <div
+                                className={cn('h-full rounded-full transition-all', {
+                                    'bg-gradient-to-r from-cyan-500 to-blue-500': percentage < 80,
+                                    'bg-gradient-to-r from-amber-500 to-orange-500': percentage >= 80 && percentage < 100,
+                                    'bg-gradient-to-r from-red-500 to-red-600': percentage >= 100,
+                                })}
+                                style={{ width: `${Math.min(percentage, 100)}%` }}
+                            />
+                        </div>
+                        <p className='text-xs text-gray-500 mt-1.5'>
+                            {plan === "free" ? "Free Plan" : "Pro Plan"}
+                        </p>
+                    </div>
+
+                    {/* Upgrade Button */}
+                    {plan === "free" && (
+                        <Button
+                            className='w-full rounded-xl bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white transition-all h-11 font-medium shadow-lg shadow-cyan-500/20'
+                            onClick={handleUpgrade}
+                        >
+                            <Sparkles className='mr-2 w-4 h-4' />
+                            Upgrade to Pro
+                        </Button>
+                    )}
+
+                    {/* Account Info */}
+                    <div className='p-3 rounded-lg bg-[#141414] border border-gray-800'>
+                        <div className='flex items-center gap-3'>
+                            <div className='relative w-8 h-8 rounded-full bg-cyan-500/20 flex items-center justify-center border border-cyan-500/30 overflow-hidden'>
+                                {user?.imageUrl ? (
+                                    <NextImage
+                                        src={user.imageUrl}
+                                        alt="Profile"
+                                        fill
+                                        className='object-cover'
+                                    />
+                                ) : (
+                                    <User className='w-4 h-4 text-cyan-400' />
+                                )}
+                            </div>
+                            <div className='flex-1 min-w-0'>
+                                <p className='text-sm font-medium text-gray-200 truncate'>
+                                    {user?.fullName || user?.firstName || 'User'}
+                                </p>
+                                <p className='text-xs text-gray-500 truncate'>
+                                    {plan === "free" ? "Free Plan" : "Pro Plan"}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Footer Links */}
+                    <div className='pt-3 border-t border-gray-800/50'>
+                        <div className='flex items-center justify-center gap-4 text-xs text-gray-500'>
+                            <Link href='/help' className='hover:text-cyan-400 transition-colors'>
+                                Help
+                            </Link>
+                            <span className='text-gray-700'>•</span>
+                            <Link href='/settings' className='hover:text-cyan-400 transition-colors'>
+                                Settings
+                            </Link>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
+
+            <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+                <DialogContent className="bg-[#0a0a0a] border border-gray-800 sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle className="text-xl font-semibold bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">TARS AI</DialogTitle>
+                        <DialogDescription className="text-gray-400 mt-2">
+                            Are you sure you want to permanently delete this chat? This action cannot be undone.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter className="sm:justify-end gap-2 mt-4">
+                        <Button
+                            type="button"
+                            variant="secondary"
+                            className="bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/20 backdrop-blur-sm"
+                            onClick={() => setIsDeleteDialogOpen(false)}
+                            disabled={isDeleting}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="destructive"
+                            className="bg-red-600 hover:bg-red-700 text-white border border-red-500/20 shadow-lg shadow-red-500/20"
+                            onClick={() => {
+                                if (chatToDelete) {
+                                    deleteChat(chatToDelete)
+                                    setIsDeleteDialogOpen(false)
+                                    setChatToDelete(null)
+                                }
+                            }}
+                            disabled={isDeleting}
+                        >
+                            {isDeleting ? (
+                                <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    Deleting...
+                                </>
+                            ) : (
+                                "Delete"
+                            )}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </>
     )
 }
 
