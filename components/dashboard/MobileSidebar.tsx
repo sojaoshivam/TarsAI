@@ -23,7 +23,7 @@ const MobileSidebar = ({ chatId, chats }: Props) => {
                 </Button>
             </SheetTrigger>
             <SheetContent side="left" className="p-4 bg-[#0a0a0a] border-gray-800 w-72">
-                <Sidebar chatId={chatId} chats={chats} />
+                <Sidebar chatId={chatId} chats={chats} closeSheet={() => setIsOpen(false)} />
             </SheetContent>
         </Sheet>
     )

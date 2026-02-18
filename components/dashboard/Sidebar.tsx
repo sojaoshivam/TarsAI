@@ -26,7 +26,8 @@ import {
 
 type Props = {
     chats: DrizzleChat[],
-    chatId: number
+    chatId: number,
+    closeSheet?: () => void
 }
 
 const texts = [
@@ -40,7 +41,7 @@ const texts = [
     "塔斯",
 ];
 
-const Sidebar = ({ chatId, chats }: Props) => {
+const Sidebar = ({ chatId, chats, closeSheet }: Props) => {
     const router = useRouter()
     const { user } = useUser()
     const [uploading, setUploading] = useState(false)
@@ -126,10 +127,9 @@ const Sidebar = ({ chatId, chats }: Props) => {
                 mutate(data, {
                     onSuccess: ({ chat_id }) => {
                         toast.success("Chat created successfully!")
-                        // Give time for subscription refetch to complete before navigation
-                        setTimeout(() => {
-                            router.push(`/dashboard/${chat_id}`)
-                        }, 500);
+                        router.refresh()
+                        router.push(`/dashboard/${chat_id}`)
+                        closeSheet?.()
                     },
                     onError: (error) => {
                         console.error(error);
@@ -237,12 +237,12 @@ const Sidebar = ({ chatId, chats }: Props) => {
                                     'bg-cyan-500/10 border border-cyan-500/30 text-cyan-400': chat.id === chatId,
                                     'hover:bg-[#141414] text-gray-400 hover:text-gray-200': chat.id !== chatId,
                                 })
-                            }>
+                            } onClick={() => closeSheet?.()}>
                                 <FileText className='mr-2 w-4 h-4 flex-shrink-0' />
                                 <p className='w-full overflow-hidden text-sm truncate whitespace-nowrap text-ellipsis'>
                                     {chat.pdfName}
                                 </p>
-                                <div className='ml-auto pl-2 opacity-0 group-hover:opacity-100 transition-opacity flex items-center'>
+                                <div className='ml-auto pl-2 flex items-center'>
                                     <Button
                                         onClick={(e) => {
                                             e.preventDefault()
