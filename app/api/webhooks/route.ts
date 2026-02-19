@@ -14,8 +14,13 @@ export async function POST(req: Request) {
 
     // Verify webhook signature
     const headersList = await headers();
-    const signature = headersList.get('x-signature') || headersList.get('stripe-signature') || '';
+    const signature = headersList.get('x-signature') || headersList.get('stripe-signature') || headersList.get('webhook-signature') || '';
     const webhookSecret = getWebhookSecret('dodo');
+
+    // Log headers for debugging
+    headersList.forEach((value, key) => {
+      console.log(`Header [${key}]: ${value}`);
+    });
 
     if (!webhookSecret) {
       console.error('Webhook secret not configured');
