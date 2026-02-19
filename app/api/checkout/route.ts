@@ -1,5 +1,5 @@
-// app/api/checkout/route.ts
 import { auth } from "@clerk/nextjs/server";
+import { clerkClient } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
@@ -10,16 +10,29 @@ export async function POST(req: Request) {
   }
 
   try {
-    // Initialize Dodo Payments checkout
-    // Replace with actual Dodo Payments API call
-    // Use origin from request headers as base URL fallback
-    const origin = process.env.NEXT_BASE_URL || req.headers.get("origin") || "http://localhost:3000";
+    // Get user's primary email from Clerk
+    const client = await clerkClient();
+    const user = await client.users.getUser(userId);
+    const userEmail = user.primaryEmailAddress?.emailAddress;
 
-    const checkoutSession = {
-      url: `${process.env.DODO_CHECKOUT_URL}&metadata[userId]=${userId}&return_url=${encodeURIComponent(`${origin}/dashboard`)}&redirect_url=${encodeURIComponent(`${origin}/dashboard`)}`,
-    };
+    if (!userEmail) {
+      return NextResponse.json(
+        { error: "User email not found" },
+        { status: 400 }
+      );
+    }
 
-    return NextResponse.json({ url: checkoutSession.url });
+    const origin =
+      process.env.NEXT_BASE_URL || req.headers.get("origin") || "http://localhost:3000";
+
+    // Build checkout URL with email parameter
+    const checkoutUrl = `${process.env.DODO_CHECKOUT_URL}?email=${encodeURIComponent(
+      userEmail
+    )}&return_url=${encodeURIComponent(
+      `${origin}/dashboard`
+    )}&redirect_url=${encodeURIComponent(`${origin}/dashboard`)}`;
+
+    return NextResponse.json({ url: checkoutUrl });
   } catch (error) {
     console.error("Checkout error:", error);
     return NextResponse.json(
@@ -28,3 +41,4 @@ export async function POST(req: Request) {
     );
   }
 }
+

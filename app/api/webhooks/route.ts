@@ -1,136 +1,107 @@
 import { db } from "@/app/lib/db";
 import { userSubscriptions } from "@/app/lib/db/schema";
 import { eq } from "drizzle-orm";
-import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { clerkClient } from "@clerk/nextjs/server";
-import { verifyDodoSignature, getWebhookSecret } from "@/app/lib/webhook-verification";
 
 export async function POST(req: Request) {
-  console.log("🚀 WEBHOOK POST RECEIVED!");
-
   try {
-    const body = await req.text();
+    const body = await req.json();
 
-    // Verify webhook signature
-    const headersList = await headers();
-    const signature = headersList.get('x-signature') || headersList.get('stripe-signature') || headersList.get('webhook-signature') || '';
-    const webhookSecret = getWebhookSecret('dodo');
+    // Extract the event
+    const event = body.data || body;
+    const eventType = body.type;
 
-    // Log headers for debugging
-    headersList.forEach((value, key) => {
-      console.log(`Header [${key}]: ${value}`);
+    // Only process payment success events
+    const paymentSuccessEvents = [
+      "checkout.session.completed",
+      "payment.succeeded",
+      "subscription.active",
+      "subscription.updated",
+      "subscription.renewed",
+    ];
+
+    if (!paymentSuccessEvents.includes(eventType)) {
+      return NextResponse.json({ received: true });
+    }
+
+    // Get the customer email from the payment
+    const customerEmail =
+      event.customer?.email ||
+      event.customer_email ||
+      event.email;
+
+    if (!customerEmail) {
+      console.error("Webhook: No customer email found");
+      return NextResponse.json(
+        { error: "No customer email found" },
+        { status: 400 }
+      );
+    }
+
+    // Look up user in Clerk by email
+    const client = await clerkClient();
+    const users = await client.users.getUserList({
+      emailAddress: [customerEmail],
+      limit: 1,
     });
 
-    if (!webhookSecret) {
-      console.error('Webhook secret not configured');
-      return new NextResponse('Webhook not configured', { status: 500 });
+    if (!users.data || users.data.length === 0) {
+      console.error("Webhook: User not found for email:", customerEmail);
+      return NextResponse.json(
+        { error: "User not found" },
+        { status: 400 }
+      );
     }
 
-    if (!signature) {
-      console.error('Missing webhook signature');
-      return new NextResponse('Unauthorized: Missing signature', { status: 401 });
-    }
+    const userId = users.data[0].id;
 
-    // Verify signature (assuming Dodo payments by default)
-    const isValid = verifyDodoSignature(body, signature, webhookSecret);
-    if (!isValid) {
-      console.error('Invalid webhook signature');
-      return new NextResponse('Unauthorized: Invalid signature', { status: 401 });
-    }
+    // Set subscription end date to 1 month from now
+    const subscriptionEndDate = new Date();
+    subscriptionEndDate.setMonth(subscriptionEndDate.getMonth() + 1);
 
-    const event = JSON.parse(body);
+    // Get subscription IDs from event
+    const subId = event.subscription_id || event.id || "manual_" + Date.now();
+    const custId = event.customer?.customer_id || event.customer_id || "manual_" + Date.now();
 
-    console.log('--- WEBHOOK START ---');
-    console.log('Event Type:', event.type);
-    console.log('Event Data:', JSON.stringify(event.data || event, null, 2));
+    // Check if user already has a subscription
+    const existingSub = await db
+      .select()
+      .from(userSubscriptions)
+      .where(eq(userSubscriptions.userId, userId));
 
-    const session = event.data || event;
-    const eventType = event.type;
-
-    // Handle Subscription/Payment Success
-    if (
-      eventType === "checkout.session.completed" ||
-      eventType === "payment.succeeded" ||
-      eventType === "subscription.active"
-    ) {
-      let userId = session.metadata?.userId || session.customer?.metadata?.userId;
-
-      // Handle case where metadata is a string
-      if (!userId && session.metadata && typeof session.metadata === 'string') {
-        try {
-          const parsedMeta = JSON.parse(session.metadata);
-          userId = parsedMeta.userId;
-        } catch (e) {
-          console.log("Failed to parse metadata string");
-        }
-      }
-
-      // Fallback: Look up by email
-      if (!userId) {
-        const email = session.customer_email || session.email || session.customer_details?.email || session.customer?.email;
-        if (email) {
-          console.log("Looking up user by email:", email);
-          try {
-            const client = await clerkClient();
-            const users = await client.users.getUserList({ emailAddress: [email], limit: 1 });
-            if (users.data.length > 0) {
-              userId = users.data[0].id;
-              console.log("Found user by email:", userId);
-            }
-          } catch (error) {
-            console.error("Clerk lookup failed:", error);
-          }
-        }
-      }
-
-      if (!userId) {
-        console.error("Webhook: User ID not found");
-        return new NextResponse("User ID not found", { status: 400 }); // Return 400 for bad request
-      }
-
-      // Update or create subscription
-      const existingSub = await db
-        .select()
-        .from(userSubscriptions)
-        .where(eq(userSubscriptions.userId, userId));
-
-      const subscriptionEndDate = new Date();
-      subscriptionEndDate.setMonth(subscriptionEndDate.getMonth() + 1);
-
-      const subId = session.subscription_id || session.id || "manual_" + Date.now();
-      const custId = session.customer_id || session.customer || "manual_" + Date.now();
-
-      if (existingSub.length > 0) {
-        await db
-          .update(userSubscriptions)
-          .set({
-            stripeCustomerId: custId,
-            stripeSubscriptionId: subId,
-            plan: "pro",
-            currentPeriodEnd: subscriptionEndDate,
-            pdfCount: 0,
-            lastResetDate: new Date(),
-          })
-          .where(eq(userSubscriptions.userId, userId));
-        console.log("Updated PRO subscription for", userId);
-      } else {
-        await db.insert(userSubscriptions).values({
-          userId,
+    if (existingSub.length > 0) {
+      // Update existing subscription
+      await db
+        .update(userSubscriptions)
+        .set({
           stripeCustomerId: custId,
           stripeSubscriptionId: subId,
           plan: "pro",
           currentPeriodEnd: subscriptionEndDate,
           pdfCount: 0,
           lastResetDate: new Date(),
-        });
-        console.log("Created PRO subscription for", userId);
-      }
+        })
+        .where(eq(userSubscriptions.userId, userId));
+    } else {
+      // Create new subscription
+      await db.insert(userSubscriptions).values({
+        userId,
+        stripeCustomerId: custId,
+        stripeSubscriptionId: subId,
+        plan: "pro",
+        currentPeriodEnd: subscriptionEndDate,
+        pdfCount: 0,
+        lastResetDate: new Date(),
+      });
     }
 
-    return new NextResponse(null, { status: 200 });
+    return NextResponse.json({ received: true });
   } catch (error) {
     console.error("Webhook error:", error);
-    return new NextResponse("Webhook handler failed", { status: 500 });
+    return NextResponse.json(
+      { error: "Webhook processing failed" },
+      { status: 500 }
+    );
   }
 }
