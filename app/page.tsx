@@ -4,7 +4,8 @@ import FAQs from "@/components/landing/faqs-component";
 import { Footer7 } from "@/components/shared/Footer";
 import Component from "@/components/landing/highlight-card";
 import Pricing from "@/components/shared/pricing-component";
-import { Testimonial } from "@/components/landing/testimonial";
+import { WallOfLove } from "@/components/landing/wall-of-love";
+import { DemoVideo } from "@/components/landing/demo-video";
 import { Button } from "@/components/ui/button";
 import DisplayCards from "@/components/ui/display-cards";
 import { Navbar } from "@/components/shared/navbar";
@@ -137,6 +138,11 @@ export default async function Home() {
         </section>
 
 
+        {/* Demo Video Section */}
+        <FadeIn className="mt-28 md:mt-40">
+          <DemoVideo />
+        </FadeIn>
+
         {/* "Just Upload" Section: Replaced <section> with <FadeIn> */}
         <FadeIn className="py-20 md:py-32 mt-28 md:mt-56 flex flex-col lg:flex-row justify-between gap-16">
           <div className="w-full lg:w-[50%] ">
@@ -175,16 +181,9 @@ export default async function Home() {
           <Pricing />
         </FadeIn>
 
-        {/* Testimonial Section: Replaced <section> with <FadeIn> */}
+        {/* Wall of Love Section */}
         <FadeIn className="py-20 md:py-32">
-          <Testimonial
-            companyLogo="https://assets.rapidui.dev/testimonials/companies/vercel.svg"
-            quote="I'm Shivam, an aspiring web developer who built TARS AI to make information effortless. What started as a personal need to organize knowledge has grown into a tool designed to help anyone think faster, work smarter, and stay focused."
-            highlightedText="TARS AI"
-            authorName="Shivam"
-            authorPosition="Founder, TARS AI"
-            authorImage="httpshttps://assets.rapidui.dev/testimonials/people/guillermo-rauch.webp"
-          />
+          <WallOfLove />
         </FadeIn>
 
         {/* FAQs Section: Replaced <section> with <FadeIn> */}
